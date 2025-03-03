@@ -1,0 +1,47 @@
+name: dns-simple
+
+networks:
+  dnsnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.10.0/24
+
+  normalnet:
+    driver: bridge
+
+services:
+  unbound1:
+    image: klutchell/unbound
+    hostname: unbound1
+    restart: unless-stopped
+    networks:
+      dnsnet:
+        ipv4_address: 192.168.10.2
+    volumes:
+      - ./unbound.conf:/etc/unbound/custom.conf.d/custom.conf:ro
+
+  unbound2:
+    image: klutchell/unbound
+    hostname: unbound2
+    restart: unless-stopped
+    networks:
+      dnsnet:
+        ipv4_address: 192.168.10.3
+    volumes:
+      - ./unbound.conf:/etc/unbound/custom.conf.d/custom.conf:ro
+
+  alpine-test:
+    build: ../docker/alpine-test
+    hostname: alpine-test
+    init: true
+    command: ["/sleep.sh"]
+    depends_on:
+      - unbound1
+      - unbound2
+    networks:
+      normalnet:
+      dnsnet:
+    dns:
+      - 192.168.10.2
+      - 192.168.10.3
