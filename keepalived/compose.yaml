@@ -1,0 +1,59 @@
+name: dns-keepalive
+
+# The "normalnet" needs to be lexicographically before dnsnet in order to be the
+# default gateway - this is... stupid, and defining "gw_priority" has only been
+# introduced in (as of 2025-03-04) bleeding-edge docker compose.
+
+networks:
+  a_normalnet:
+    driver: bridge
+
+  dnsnet:
+    driver: ipvlan
+    driver_opts:
+      parent: eth0.53
+      mode: l3s
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24
+          gateway: 192.168.100.1
+
+services:
+  unbound1:
+    image: klutchell/unbound
+    restart: unless-stopped
+    hostname: unbound1
+    networks:
+      dnsnet:
+        ipv4_address: 192.168.100.2
+      a_normalnet:
+    volumes:
+      - ./unbound.conf:/etc/unbound/unbound.conf:ro
+      - ./unbound.override.conf:/etc/unbound/custom.conf.d/override.conf:ro
+
+  unbound2:
+    image: klutchell/unbound
+    restart: unless-stopped
+    hostname: unbound2
+    networks:
+      dnsnet:
+        ipv4_address: 192.168.100.3
+      a_normalnet:
+    volumes:
+      - ./unbound.conf:/etc/unbound/unbound.conf:ro
+      - ./unbound.override.conf:/etc/unbound/custom.conf.d/override.conf:ro
+
+  alpine-test:
+    build: ../docker/alpine-test
+    hostname: alpine-test
+    init: true
+    command: ["/sleep.sh"]
+    depends_on:
+      - unbound1
+      - unbound2
+    networks:
+      a_normalnet:
+#        gw_priority: 1 # not yet :(
+      dnsnet:
+    dns:
+      - 192.168.100.100
