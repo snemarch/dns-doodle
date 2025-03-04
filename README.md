@@ -51,7 +51,9 @@ Benchmark 1: nslookup google.dk 192.168.100.100
   Time (mean ± σ):       0.6 µs ±  11.1 µs    [User: 1.1 µs, System: 19.3 µs]
   Range (min … max):     0.0 µs … 481.9 µs    10000 runs
 
-
+  Desværre virker det ikke sådan liiiiige med Keepalived, i hvert fald ikke da
+  jeg prøvede at sætte Keepalived som en compose entry, hverken med at joine de
+  to netværk og ændre config, eller som network_mode: host.
 }
 
 
