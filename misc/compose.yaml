@@ -1,0 +1,64 @@
+# Med dette setup kan containere direkte bruge en af do to unbound hosts,
+# men default vil Docker override resolv.conf til at pege på sin egen interne
+# DNS resolver, der så prøver at bruge de listede IP'er med primary failover til
+# secondary efter timeout mode (dvs hverken round-robin loadbalncing eller
+# alpine-style shotgun resolving).
+# OK for et basic setup, men Docker laver ikke failover - så HVERT DNS request
+# vil time ud før den prøver secondary.
+networks:
+  dnsnet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24
+  
+  normalnet:
+    driver: bridge
+
+services:
+  unbound1:
+    image: klutchell/unbound
+    container_name: unbound1
+    restart: unless-stopped
+    networks:
+      dnsnet:
+        ipv4_address: 192.168.100.2
+    volumes:
+      - ./unbound.conf:/etc/unbound/custom.conf.d/custom.conf:ro
+
+  unbound2:
+    image: klutchell/unbound
+    container_name: unbound2
+    restart: unless-stopped
+    networks:
+      dnsnet:
+        ipv4_address: 192.168.100.3
+    volumes:
+      - ./unbound.conf:/etc/unbound/custom.conf.d/custom.conf:ro
+
+  alpine-test:
+    image: alpine
+    stop_signal: SIGKILL
+    container_name: alpine-test
+    command: ["sleep", "infinity"]
+    depends_on:
+      - unbound1
+      - unbound2
+    networks:
+      normalnet:
+      dnsnet:
+    dns:
+      - 192.168.100.2
+      - 192.168.100.3
+
+  # gorb:
+  #   image: kobolog/gorb
+  #   container_name: gorb
+  #   restart: unless-stopped
+  #   networks:
+  #     dnsnet:
+  #       ipv4_address: 192.168.100.254
+  #   cap_add:
+  #     - NET_ADMIN
+  #   volumes:
+  #     - ./gorb-config.yaml:/etc/gorb/config.yaml

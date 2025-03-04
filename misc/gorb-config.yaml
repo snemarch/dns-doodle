@@ -1,0 +1,13 @@
+interface: eth0  # The macvlan interface
+address: 192.168.100.100/24  # The floating IP
+
+nodes:
+  - name: unbound1
+    ip: 192.168.100.2
+    health_check: "nc -z 192.168.100.2 53"  # Check if Unbound1 is responding
+    priority: 100  # Higher priority -> preferred
+
+  - name: unbound2
+    ip: 192.168.100.3
+    health_check: "nc -z 192.168.100.3 53"  # Check if Unbound2 is responding
+    priority: 90  # Lower priority -> Backup

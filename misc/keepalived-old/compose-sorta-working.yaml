@@ -1,0 +1,101 @@
+# check reference: https://serverfault.com/questions/925807/ipvs-keepalived-doesnt-balance-udp-connections
+
+# The "normalnet" needs to be lexicographically before dnsnet in order to be the
+# default gateway - this is retarded, and defining "gw_priority" has only been
+# introduced in bleeding-edge docker compose 
+# Otherwise we need capability NET_ADMIN to set defalut route in a startup script,
+# but that's plain stupid.
+
+networks:
+  a_normalnet:
+    driver: bridge
+
+  dnsnet:
+    # driver: bridge
+    # driver: macvlan # måske
+    driver: ipvlan
+    driver_opts:
+      parent: eth0.53
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24
+          gateway: 192.168.100.1
+
+
+services:
+  unbound1:
+    image: klutchell/unbound
+    container_name: unbound1
+    restart: unless-stopped
+    networks:
+      dnsnet:
+        ipv4_address: 192.168.100.2
+      a_normalnet:
+    volumes:
+      - ./unbound.conf:/etc/unbound/custom.conf.d/custom.conf:ro
+    cap_add:
+      - NET_ADMIN  # Required for Keepalived to modify network interfaces
+
+  unbound2:
+    image: klutchell/unbound
+    container_name: unbound2
+    restart: unless-stopped
+    networks:
+      dnsnet:
+        ipv4_address: 192.168.100.3
+      a_normalnet:
+    volumes:
+      - ./unbound.conf:/etc/unbound/custom.conf.d/custom.conf:ro
+    cap_add:
+      - NET_ADMIN  # Required for Keepalived to modify network interfaces
+
+  # keepalived:
+  #   image: osixia/keepalived
+  #   container_name: keepalived
+  #   privileged: true
+  #   restart: unless-stopped
+  #   networks:
+  #     dnsnet:
+  #       ipv4_address: 192.168.100.100  # Virtual IP for Unbound
+  #   cap_add:
+  #     - NET_ADMIN
+  #     - NET_BROADCAST
+  #   depends_on:
+  #     - unbound1
+  #     - unbound2
+  #   volumes:
+  #     - ./keepalived.conf:/usr/local/etc/keepalived/keepalived.conf
+
+
+  alpine-test:
+    image: alpine
+    stop_signal: SIGKILL
+    container_name: alpine-test
+    command: ["sleep", "infinity"]
+    depends_on:
+      # - keepalived
+      - unbound1
+      - unbound2
+    networks:
+      a_normalnet:
+#        gw_priority: 1
+#        priority: 1
+      dnsnet:
+    dns:
+      - 192.168.100.100
+
+  # alpine2:
+  #   image: alpine
+  #   stop_signal: SIGKILL
+  #   container_name: alpine2
+  #   command: ["sleep", "infinity"]
+  #   depends_on:
+  #     - unbound1
+  #     - unbound2
+  #   networks:
+  #     dnsnet:
+  #   dns:
+  #     - 192.168.100.2
+  #     - 192.168.100.3
+
+
