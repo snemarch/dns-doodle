@@ -42,6 +42,10 @@ ipvlan. Yes, it's not just the host that is isolated from the containers,
 without the explicit link the subinterface is isolated from the hsot as well.
 Neat.
 
+Note that there's significant overhead in going through Docker's dns resolver,
+so if you don't need it's container addressing, you can use the 192.168.100.100
+VIP directly for really fast speeds...
+
 NOTE: unbound.conf from the `klutchell/unbound` image has been added here, but
 odified to remove the interface and access-control configurations, since that
 can't be removed in the override config - but we're still using the override
@@ -61,3 +65,8 @@ instead) to get the necessary packet rewrite working.
 
 TODO: fork `klutchell/unbound` to allows config from environment variables,
 so `listen-interface` could use IP address instead of the `eth1` interface.
+
+TODO: figure out how to override the docker-dns resolver and respect just adding
+the VIP directly to resolv.conf... this would probably be even more interesting
+if the unbound instances could do split dns, and forward internal DNS to the
+Docker dns resolver? Hmm!

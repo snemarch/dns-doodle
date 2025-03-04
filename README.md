@@ -39,6 +39,19 @@ google.dk.	301	IN	A	142.251.9.94
   i forhold til det virker og til perf), og om jeg går på @192.168.100.100 eller
   @192.168.100.2 , så der er et eller andet *ANDET* der har effekt her...
 
+
+ipvsadm --set 0 0 15
+ipvsadm -A -u 192.168.100.100:53 -s rr
+ipvsadm -a -u 192.168.100.100:53 -r 192.168.100.2:53 -m
+ipvsadm -a -u 192.168.100.100:53 -r 192.168.100.3:53 -m
+
+  Oh wait, det er drill der er langsommere end nslookup? Yeeeeeps!
+  root@alpine-test ~ # hyperfine --runs 10000 "nslookup google.dk 192.168.100.100"
+Benchmark 1: nslookup google.dk 192.168.100.100
+  Time (mean ± σ):       0.6 µs ±  11.1 µs    [User: 1.1 µs, System: 19.3 µs]
+  Range (min … max):     0.0 µs … 481.9 µs    10000 runs
+
+
 }
 
 
