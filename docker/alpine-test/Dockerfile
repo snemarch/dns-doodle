@@ -1,15 +1,11 @@
 FROM alpine:3.21
 
-ARG USER="Anonymouse"
-ARG GROUP="Anonymouse"
-
 RUN apk add --no-interactive --no-cache curl drill helix hyperfine ripgrep zsh
+RUN apk add --no-interactive --no-cache iptables ipvsadm tcpdump
 
-RUN addgroup -S ${GROUP} && adduser -S ${USER} -G ${GROUP}
+WORKDIR /root
+COPY --chown=root:root sleep.sh /
+COPY --chown=root:root banner.txt magic.sh benchmark.sh watcher.sh .zshrc ./
 
-USER ${USER}
-WORKDIR /home/${USER}
-COPY --chown=${USER}:${GROUP} sleep.sh /
-COPY --chown=${USER}:${GROUP} banner.txt benchmark.sh .zshrc ./
 
 CMD ["/bin/zsh"]

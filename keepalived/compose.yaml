@@ -19,6 +19,19 @@ networks:
           gateway: 192.168.100.1
 
 services:
+  keepalived:
+    image: visibilityspots/keepalived:latest
+    network_mode: host
+    depends_on:
+      - unbound1
+      - unbound2
+    volumes:
+      - ./keepalived.conf:/etc/keepalived/keepalived.conf:ro
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+      - NET_BROADCAST
+
   unbound1:
     image: klutchell/unbound
     restart: unless-stopped
@@ -47,13 +60,19 @@ services:
     build: ../docker/alpine-test
     hostname: alpine-test
     init: true
-    command: ["/sleep.sh"]
+    command: ["/root/watcher.sh"]
     depends_on:
-      - unbound1
-      - unbound2
+      - keepalived
+#      - unbound1
+#      - unbound2
+    #NOTE: these capabilities are not needed for normal functionality, just for debugging purposes.
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
     networks:
       a_normalnet:
 #        gw_priority: 1 # not yet :(
       dnsnet:
     dns:
       - 192.168.100.100
+      - 1.0.0.1 # cloudflare fallback

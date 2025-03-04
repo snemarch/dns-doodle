@@ -34,14 +34,17 @@ to integrate it?), and I haven't written scripts for the setup yet. There's
 several fiddly things that are necessary:
 
 ```sh
-docker run --rm --privileged --network host alpine sysctl net.ipv4.vs.conntrack=1
-docker run --rm --privileged --network host alpine sysctl net.ipv4.vs.expire_nodest_conn=1
 
-ip link add dnsnet-host link eth0.53 type ipvlan mode l3
-ip addr add 192.168.100.254/24 dev dnsnet-host
-ip link set dnsnet-host up
+docker run --rm -it --privileged --network host alpine /bin/sh -c "\
+ sysctl net.ipv4.vs.conntrack=1 &&
+ sysctl net.ipv4.vs.expire_nodest_conn=1"
 
-iptables -t nat -A POSTROUTING -s 192.168.100.0/24 -o dnsnet-host -j SNAT --to-source 192.168.100.100
+docker run --rm -it --cap-add NET_ADMIN --network host alpine /bin/sh -c "\
+  apk add iptables && \
+  ip link add dnsnet-host link eth0.53 type ipvlan mode l3 && \
+  ip addr add 192.168.100.254/24 dev dnsnet-host && \
+  ip link set dnsnet-host up && \
+  iptables -t nat -A POSTROUTING -s 192.168.100.0/24 -o dnsnet-host -j SNAT --to-source 192.168.100.100"
 ```
 
 So, IPVS only doest DNAT, but we need SNAT for replies from Unbound to be routed
