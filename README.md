@@ -1,6 +1,48 @@
 DNS Doodle: local resolver for containers
 =========================================
 
+2025-04-04 {
+  HMMMMM! Så, det ser ud til at man faktisk IKKE BEHØVER at lave ipvsadm (og
+  dermod nok heller ikke keepalived) på host netværket. Hvis jeg har en
+  container med de CAP_ADD jeg har givet til Keepalived, kan jeg manuelt lave
+  ipvsadm - og uden ipvs.conntrack og netfilter (dvs. kun med DNAT) kan svaret
+  routes direkte tilbage:
+
+```
+root@alpine-test ~ # drill google.dk @192.168.100.100
+;; ->>HEADER<<- opcode: QUERY, rcode: NOERROR, id: 15590
+;; flags: qr rd ra ; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 0
+;; QUESTION SECTION:
+;; google.dk.	IN	A
+
+;; ANSWER SECTION:
+google.dk.	301	IN	A	142.251.9.94
+
+;; AUTHORITY SECTION:
+
+;; ADDITIONAL SECTION:
+
+;; Query time: 1 msec
+;; SERVER: 192.168.100.100
+;; WHEN: Tue Mar  4 07:04:53 2025
+;; MSG SIZE  rcvd: 43
+```
+
+  Fra tcpdump i en anden shell på test-alpine containeren:
+```
+07:04:53.044721 IP 192.168.100.4.43528 > 192.168.100.3.53: 15590+ A? google.dk. (27)
+07:04:53.045406 IP 192.168.100.3.53 > 192.168.100.4.43528: 15590 1/0/0 A 142.251.9.94 (43)
+```
+
+  Til gengæld snakker vi nu millisekund i stedet for microsekund timing >_<
+  Men hmm, det er lige meget om jeg også sætter ipvland mode til l2 (dvs både
+  i forhold til det virker og til perf), og om jeg går på @192.168.100.100 eller
+  @192.168.100.2 , så der er et eller andet *ANDET* der har effekt her...
+
+}
+
+
+
 This is a research playground for testing various methods of achieving local
 (staying within the Docker host machine for cached entries) DNS lookups for
 containers. The purpose is performance and resilience, and being independent
