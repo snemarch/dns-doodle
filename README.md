@@ -1,6 +1,17 @@
 DNS Doodle: local resolver for containers
 =========================================
 
+2025-04-08 {
+  Master branch har fået integreret keepalived og fix-network.sh i docker
+  compose stakken - men nogle gange hvis man restarter en unbound container,
+  bliver den ikke re-added af keepalived. Man kan i de tilfælde heller ikke
+  nslookup direkte på 192.168.100.{2,3} ip'en, men man kan godt pinge den.
+  Måske er det noget ARP cache issue (og kan det være dnsnet-host der spøger?),
+  jeg skal også have kigget på at få unbound til at lytte den specifikk ip-addr
+  i stedet for kun netværk-interfacet, så jeg kan se om den får en fejl om at
+  den ikke kan binde til den ip:port combo.
+}
+
 2025-04-04 {
   HMMMMM! Så, det ser ud til at man faktisk IKKE BEHØVER at lave ipvsadm (og
   dermod nok heller ikke keepalived) på host netværket. Hvis jeg har en
