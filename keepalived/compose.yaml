@@ -19,12 +19,25 @@ networks:
           gateway: 192.168.100.1
 
 services:
+  fix_host_network:
+    build: ../docker/alpine-test
+    init: true
+    privileged: true
+    network_mode: host
+    volumes:
+      - ./fix-network.sh:/fix-network.sh:ro
+    command: ["/fix-network.sh"]
+
   keepalived:
     image: visibilityspots/keepalived:latest
     network_mode: host
     depends_on:
-      - unbound1
-      - unbound2
+      fix_host_network:
+        condition: service_completed_successfully
+      unbound1:
+        condition: service_started
+      unbound2:
+        condition: service_started
     volumes:
       - ./keepalived.conf:/etc/keepalived/keepalived.conf:ro
     cap_add:
@@ -63,15 +76,13 @@ services:
     command: ["/root/watcher.sh"]
     depends_on:
       - keepalived
-#      - unbound1
-#      - unbound2
     #NOTE: these capabilities are not needed for normal functionality, just for debugging purposes.
     cap_add:
       - NET_ADMIN
       - NET_RAW
     networks:
       a_normalnet:
-#        gw_priority: 1 # not yet :(
+#        gw_priority: 1 # Requires Docker Compose 2.33.1
       dnsnet:
     dns:
       - 192.168.100.100
