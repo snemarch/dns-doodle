@@ -1,5 +1,99 @@
 Denne fil er én stor rodebunke lige nu ;-)
 
+2025-03-09 {
+    Keepalived tilføjer en ret stor mængde kompleksitet, og eftersom jeg ikke
+    bruger VRRP failover men kun er interesseret i enkelte containere, er det
+    lidt svært at forsvare. Derudover er den forholdsvis langsom til at reagere
+    på fejlsituationer.
+
+    For at håndtere rolling upgrade ville det være nok at reagere på containere
+    forsvinder / kommer tilbage - og Docker har et event API der er perfekt til
+    formålet. Er der nogle ready-made projekter jeg kan bruge? Hvad jeg er stødt
+    på indtil videre lader til at være unmaintained, nok fordi folk der har brug
+    for lignende funktionalitet hurtigt migrerer til fx Kubernetes...
+
+    Links markeret med +++ er "dem her bør du få læst ordentligt igennem, Sune".
+
+    +++ https://www.cloudbees.com/blog/kernel-load-balancing-for-docker-containers-using-ipvs - fører videre til research om GORB.
+    https://github.com/kobolog/gorb
+    https://docs.docker.com/reference/cli/docker/system/events/
+    https://docs.docker.com/reference/api/engine/
+    https://github.com/gliderlabs/registrator
+    https://github.com/crosbymichael/skydock
+    https://bitbucket.org/quaideman/dem/src/master/
+    https://github.com/hasnat/docker-events-notifier    - 2023-10-03. Simple single-file Go uden Docker client lib.
+    https://github.com/yubiuser/docker-event-monitor    - 2024-09-15.
+    https://labex.io/tutorials/docker-how-to-monitor-docker-system-events-411575
+    https://github.com/Tecnativa/docker-socket-proxy - for ikke at give fuld docker-sock / root-escalate priv.
+
+    ### Dependencies
+    https://www.keepalived.org/
+        https://hub.docker.com/r/visibilityspots/keepalived
+        https://github.com/visibilityspots/dockerfile-keepalived
+
+    https://www.nlnetlabs.nl/projects/unbound/about/
+        https://hub.docker.com/r/klutchell/unbound
+        https://github.com/klutchell/unbound-docker
+
+    http://www.linuxvirtualserver.org/
+
+
+    ### Network setup / namespacing
+    TODOs:
+    1. Find ud af om "net.ipv4.vs" er namespaced - Docker kræver privileged
+        container for at give adgang til den, men det kan være den bare ikke er
+        på allow-list... ved eksperimentering syntes jeg det virker som om den
+        er namespaced.
+    
+    Links:
+    +++ https://dustinspecker.com/posts/ipvs-how-kubernetes-services-direct-traffic-to-pods/ - muligvis god intro til ipvs?
+    +++ https://www.youtube.com/playlist?list=PLkA60AVN3hh87OoVra6MHf2L4UR9xwJkv ipvs, cgroups/namespaces. Gammel, men muligvis god?
+    https://unix.stackexchange.com/questions/595599/linux-networking-split-eth0-w-multiple-ipv4-giving-each-ipv4-its-own-virtuald
+    https://linux.die.net/man/8/ipvsadm
+    https://access.redhat.com/solutions/315973 - per-interface, men namespacing er nok *ekstra* derudover?
+    +++ https://github.com/moby/moby/issues/35082 - performance, kan måske være relevant ifht. mit vlanip setup.
+    https://github.com/moby/moby/issues/45610 - "port exposed til localhost er tilgængelig på samme L2 segment".
+    https://docs.docker.com/engine/network/packet-filtering-firewalls/
+    https://docs.docker.com/engine/network/drivers/bridge/
+    https://docs.docker.com/engine/network/drivers/ipvlan/ - sandsynligvis the way to go. Nok L3 mode?
+    Bemærk at for L3 *skal* docker netværket være på et andet subnet end host. Pay close attention to
+    sub-interface/vlan tagging, og hvad det har af betydning for network filtering (e.g. ingen multicast
+    traffik, men unicast kan routes af parent network interface og kræver ikke ekstern L2 router).
+    https://www.kernel.org/doc/Documentation/networking/ipvlan.txt
+
+    https://docs.docker.com/engine/network/drivers/macvlan/ - måske hvis ipvlan ikke har god nok perf?
+    Probably not, kræver promiscuous mode network interface, der er issues med
+    for mange MAC adresser på et interface, osv osv osv. ...men det er måske det
+    der kan få det virkeligt hurtiger direct-routing til at virke? Og er macvlan
+    et problem hvis det bliver brugt på et subinteface, der ikke skal routes ud?
+
+
+
+    ### Benchmarking
+    At køre en masse nslookup med hyperfine er nok ikke den bedste måde at
+    benchmarke performance, specielt ikke på systemer hvor jeg er nede på single
+    digit mikrosekunder. Undersøg hvad der er af andre muligheder.
+
+    Links:
+        https://www.dns-oarc.net/tools/dnsperf
+        https://pkgs.alpinelinux.org/package/edge/testing/x86_64/dnsperf
+
+
+    ### Capabilities / privileges
+    Links:
+        https://forums.docker.com/t/docker-compose-order-of-cap-drop-and-cap-add/97136
+        https://man7.org/linux/man-pages/man7/capabilities.7.html
+
+
+    ### Bonus
+    https://github.com/nektos/act - kør GitHub Actions lokalt, nok nyttigt hvis
+    jeg vil lave custom images der skal vedligeholdes og publishes.
+
+    https://www.patorjk.com/software/taag/#p=display&f=Graffiti&t=Type%20Something%20
+
+}
+
+
 
 Muligvis kan keepalived konfigureres med startup_script? {
   #  Using the startup_script option you could set net.ipv4.vs.exipre_nodest_conn = 1,
@@ -176,7 +270,8 @@ nsenter -n -t $(docker inspect --format {{.State.Pid}} $dockername) ip route del
 Byg evt. eget docker image baseret på https://github.com/klutchell/unbound-docker
 Yeah, det kunne være en god idé - få rippet nogle af de defaults ud jeg ikke bryder mig om,
 og få tilføjet en "envsubst" så Unbond config kan sættes i hvert fald delvist med environment variables.
-envsubst er en del af gettext, find evt. en mere standalone ting?
+envsubst er en del af gettext, find evt. en mere standalone ting? - den lader dog
+til at være tilgængelig i Alpine som "envsubst".
 
 docker debug, tools:
     Standard "ip" tools: install iproute2

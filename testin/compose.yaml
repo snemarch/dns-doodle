@@ -1,0 +1,50 @@
+name: meep
+
+networks:
+  a_default:
+    driver: bridge
+
+  my_private_ipvlan:
+    driver: ipvlan
+    ipam:
+      config:
+        - subnet: 192.168.250.0/24
+    driver_opts:
+      parent: dummy0
+      ipvlan_mode: l3
+
+
+services:
+
+  ipvs-lb:
+    build: ./ipvslb
+    container_name: ipvs-lb
+    network_mode: host
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+
+    # -c cat /etc/hosts"
+
+    # command: >
+    #   bash -c "
+    #   echo hej heeeeeeeeeeej &&
+    #   tail -f /dev/null &&
+      # ipvsadm -A -t 192.168.250.100:80 -s rr &&
+      # ipvsadm -a -t 192.168.250.100:80 -r 192.168.250.2:80 -m &&
+      # ipvsadm -a -t 192.168.250.100:80 -r 192.168.250.3:80 -m &&
+    #   tail -f /dev/null"
+
+  backend1:
+    image: nginx
+    container_name: backend1
+    networks:
+      my_private_ipvlan:
+        ipv4_address: 192.168.250.2
+
+  backend2:
+    image: nginx
+    container_name: backend2
+    networks:
+      my_private_ipvlan:
+        ipv4_address: 192.168.250.3
